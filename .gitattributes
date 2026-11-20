@@ -1,0 +1,4 @@
+# Keep line endings consistent on every machine.
+* text=auto eol=lf
+# Windows batch files must use CRLF to run correctly.
+*.bat text eol=crlf

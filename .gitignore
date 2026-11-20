@@ -1,0 +1,15 @@
+node_modules/
+dist/
+coverage/
+test-results/
+playwright-report/
+playwright/.cache/
+.vite/
+
+# Machine-specific symlinks created by `npx skills add` (real files live in .agents/skills)
+.claude/skills/
+.claude/settings.local.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
