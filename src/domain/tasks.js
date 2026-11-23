@@ -24,6 +24,8 @@ export function createTask(title, { now = new Date(), id = crypto.randomUUID() }
     completed: false,
     createdAt: now.toISOString(),
     completedAt: null,
+    timeSpentSeconds: 0,
+    timerStartedAt: null,
   };
 }
 
@@ -37,11 +39,74 @@ export function renameTask(tasks, id, title) {
 
 function setCompleted(task, completed, now) {
   if (task.completed === completed) return task;
+  // Completing a task stops its timer so the running time is not lost.
+  const base = completed ? stopTimerOn(task, now) : task;
   return {
-    ...task,
+    ...base,
     completed,
     completedAt: completed ? now.toISOString() : null,
   };
+}
+
+export const MAX_MINUTES_PER_ENTRY = 1440; // 24 hours
+
+/** Checks minutes typed by the user: a whole number from 1 to 1440. */
+export function validateMinutes(raw) {
+  const text = String(raw ?? '').trim();
+  if (!/^\d+$/.test(text)) return { ok: false, error: 'invalid' };
+  const minutes = Number(text);
+  if (minutes < 1 || minutes > MAX_MINUTES_PER_ENTRY) return { ok: false, error: 'invalid' };
+  return { ok: true, minutes };
+}
+
+/** Adds a manual entry of minutes to the task's time spent. */
+export function addTimeSpent(tasks, id, minutes) {
+  return tasks.map((task) =>
+    task.id === id
+      ? { ...task, timeSpentSeconds: (task.timeSpentSeconds ?? 0) + minutes * 60 }
+      : task,
+  );
+}
+
+function elapsedSeconds(task, now) {
+  if (!task.timerStartedAt) return 0;
+  return Math.max(0, Math.floor((now - new Date(task.timerStartedAt)) / 1000));
+}
+
+function stopTimerOn(task, now) {
+  if (!task.timerStartedAt) return task;
+  return {
+    ...task,
+    timeSpentSeconds: (task.timeSpentSeconds ?? 0) + elapsedSeconds(task, now),
+    timerStartedAt: null,
+  };
+}
+
+/** Starts the timer on a task (does nothing if it is already running). */
+export function startTimer(tasks, id, now = new Date()) {
+  return tasks.map((task) =>
+    task.id === id && !task.timerStartedAt ? { ...task, timerStartedAt: now.toISOString() } : task,
+  );
+}
+
+/** Stops the timer on a task and adds the elapsed seconds to its time spent. */
+export function stopTimer(tasks, id, now = new Date()) {
+  return tasks.map((task) => (task.id === id ? stopTimerOn(task, now) : task));
+}
+
+/** Total seconds spent on a task, including a timer that is still running. */
+export function totalSeconds(task, now = new Date()) {
+  return (task.timeSpentSeconds ?? 0) + elapsedSeconds(task, now);
+}
+
+/** Formats seconds like "1h 30m", "5m" or "<1m". */
+export function formatDuration(seconds) {
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 1) return '<1m';
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h === 0) return `${m}m`;
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
 
 export function toggleTask(tasks, id, now = new Date()) {
@@ -98,6 +163,11 @@ export function isTask(value) {
     typeof value.title === 'string' &&
     typeof value.completed === 'boolean' &&
     typeof value.createdAt === 'string' &&
-    (value.completedAt === null || typeof value.completedAt === 'string')
+    (value.completedAt === null || typeof value.completedAt === 'string') &&
+    // Time fields were added later, so tasks saved before them are still valid.
+    (value.timeSpentSeconds === undefined || typeof value.timeSpentSeconds === 'number') &&
+    (value.timerStartedAt === undefined ||
+      value.timerStartedAt === null ||
+      typeof value.timerStartedAt === 'string')
   );
 }

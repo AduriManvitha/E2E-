@@ -128,6 +128,16 @@ _As a user, I want the app to keep working even if saved data can't be read._
 - **AC3** Corrupted data is not overwritten until the user makes a change.
 - **AC4** The app never crashes because of storage errors.
 
+### US-9 Time spent on a task
+
+_As a user, I want to record how long I spend on a task._
+
+- **AC1** Every task shows its time spent (e.g. "1h 30m"; "<1m" when none).
+- **AC2** I can add whole minutes (1–1440) to a task's time spent; each entry is added to the total. Invalid entries show an error and change nothing.
+- **AC3** I can start and stop a timer on a task; stopping adds the elapsed time to the total. A running timer keeps counting across reloads.
+- **AC4** Marking a task completed stops its running timer.
+- **AC5** Time spent persists. Tasks saved before this feature still load, with no time spent.
+
 ## 7. Tech Stack
 
 | Layer                | Choice                                               | Why                                                       |
@@ -144,13 +154,15 @@ _As a user, I want the app to keep working even if saved data can't be read._
 
 ### `Task`
 
-| Field         | Type                      | Rules                                                         |
-| ------------- | ------------------------- | ------------------------------------------------------------- |
-| `id`          | string                    | `crypto.randomUUID()`, generated on create                    |
-| `title`       | string                    | Required, trimmed, 1–200 chars, duplicates allowed            |
-| `completed`   | boolean                   | Default `false`                                               |
-| `createdAt`   | ISO 8601 string           | Set on create, never changes                                  |
-| `completedAt` | ISO 8601 string \| `null` | Set when marked completed; reset to `null` when marked active |
+| Field              | Type                      | Rules                                                                                   |
+| ------------------ | ------------------------- | --------------------------------------------------------------------------------------- |
+| `id`               | string                    | `crypto.randomUUID()`, generated on create                                              |
+| `title`            | string                    | Required, trimmed, 1–200 chars, duplicates allowed                                      |
+| `completed`        | boolean                   | Default `false`                                                                         |
+| `createdAt`        | ISO 8601 string           | Set on create, never changes                                                            |
+| `completedAt`      | ISO 8601 string \| `null` | Set when marked completed; reset to `null` when marked active                           |
+| `timeSpentSeconds` | number                    | Default `0`; total of manual entries and stopped timers (missing in old saved data = 0) |
+| `timerStartedAt`   | ISO 8601 string \| `null` | Set while the timer runs; `null` when stopped                                           |
 
 ### Storage format
 

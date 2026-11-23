@@ -9,6 +9,9 @@ import {
   sortTasks,
   filterTasks,
   countActive,
+  addTimeSpent,
+  startTimer,
+  stopTimer,
 } from './domain/tasks.js';
 import { loadTasks, saveTasks } from './storage/taskStorage.js';
 import TaskInput from './components/TaskInput.jsx';
@@ -45,7 +48,7 @@ export default function App() {
 
   return (
     <main className="mx-auto max-w-xl px-4 py-12">
-      <h1 className="mb-6 text-center text-4xl font-bold tracking-tight text-indigo-700">Tasks</h1>
+      <h1 className="mb-6 text-center text-4xl font-bold tracking-tight text-purple-700">Tasks</h1>
 
       {storageError && (
         <div
@@ -75,6 +78,9 @@ export default function App() {
             onToggle={(id) => commit(toggleTask(tasks, id))}
             onRename={(id, title) => commit(renameTask(tasks, id, title))}
             onDelete={(id) => commit(deleteTask(tasks, id))}
+            onAddTime={(id, minutes) => commit(addTimeSpent(tasks, id, minutes))}
+            onStartTimer={(id) => commit(startTimer(tasks, id))}
+            onStopTimer={(id) => commit(stopTimer(tasks, id))}
           />
         </div>
 

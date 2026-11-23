@@ -23,7 +23,7 @@ export default function FilterBar({
             onClick={() => onFilterChange(name)}
             aria-pressed={filter === name}
             className={`rounded-md px-2 py-1 ${
-              filter === name ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+              filter === name ? 'bg-purple-600 text-white' : 'text-slate-600 hover:bg-slate-100'
             }`}
           >
             {LABELS[name]}

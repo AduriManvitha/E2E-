@@ -16,6 +16,14 @@ _Avoid_: Open, pending, incomplete
 A task the user has marked as done.
 _Avoid_: Done, finished, checked
 
+**Time spent**:
+The total time the user has recorded on a task, from manual minutes and the timer.
+_Avoid_: Duration, hours logged, elapsed
+
+**Timer**:
+A start/stop clock on a task; stopping adds the elapsed time to its time spent.
+_Avoid_: Stopwatch, tracker
+
 **Filter**:
 The choice of which tasks are shown: All, Active, or Completed.
 _Avoid_: View, tab
