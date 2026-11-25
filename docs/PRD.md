@@ -1,6 +1,6 @@
 # PRD — Simple To-Do List App
 
-> Status: **v1.0 — agreed** (after design interview, 2026-11-20). Terms follow [GLOSSARY.md](../GLOSSARY.md).
+> Status: **v1.1: accounts added** (2026-11-24). v1.0 agreed after the design interview on 2026-11-20. Terms follow [GLOSSARY.md](../GLOSSARY.md). Architecture decision: [ADR 0001](adr/0001-express-azure-sql-jwt-cookie.md).
 
 ## 1. Problem Statement
 
@@ -20,13 +20,12 @@ This is also a **learning project**: the goal is to practise building a small, w
 ### Non-goals
 
 - Being a production-grade product or competing with Todoist/Trello.
-- Learning backend development in v1 (no server, no database server).
 
 ## 3. Target Users
 
-- **Primary:** A single individual (the developer) managing personal tasks in a desktop browser on their own machine.
+- **Primary:** A person managing personal tasks in a desktop browser.
 - **Secondary:** Anyone reviewing the project as a learning portfolio piece.
-- Single user, no accounts, runs locally on `localhost` via the Vite dev server. Not deployed.
+- Users sign up and log in. Accounts live in Azure SQL. Tasks are still stored per browser. The app runs locally (Vite + Express) and can be deployed to an Azure Web App.
 
 ## 4. Core Functions
 
@@ -37,12 +36,14 @@ This is also a **learning project**: the goal is to practise building a small, w
 5. **Filter** by status: All, Active, Completed.
 6. **Mark all complete** (toggle all).
 7. **Clear completed** (delete all completed tasks).
+8. **Sign up**, **log in** and **log out** (v1.1).
 
-## 5. Out of Scope (v1)
+## 5. Out of Scope
 
-- Backend server, HTTP API, server-side database
-- User accounts, authentication, multi-user / sharing
-- Deployment / hosting
+- Storing tasks on the server or per account (tasks stay in `localStorage`)
+- Sharing tasks between users
+- Password reset, email verification, changing account details, deleting an account
+- Social or single sign-on log in
 - Task description/notes, due dates, reminders, notifications
 - Priorities, tags, categories, multiple lists, subtasks
 - Drag-and-drop or manual reordering
@@ -138,17 +139,50 @@ _As a user, I want to record how long I spend on a task._
 - **AC4** Marking a task completed stops its running timer.
 - **AC5** Time spent persists. Tasks saved before this feature still load, with no time spent.
 
+### US-10 Sign up
+
+_As a new user, I want to create an account so I can use the app._
+
+- **AC1** The sign up form asks for name, email, username and password. The password is masked.
+- **AC2** Rules: username 3–50 characters (letters, numbers, `.`, `_`, `-`). Password at least 8 characters and at most 72 bytes. Name 1–100 characters. Email is a valid address of at most 254 characters, stored lower-case. Values are trimmed, except the password. Breaking a rule shows an inline message next to the field, and the server enforces the same rules.
+- **AC3** A username or email that is already used is rejected with an inline message on that field.
+- **AC4** The password is stored only as a bcrypt hash. It is never stored in plain text, returned by the API or logged.
+- **AC5** After a successful sign up, the log in form is shown with the username filled in and the message "Account created. Please log in."
+
+### US-11 Log in
+
+_As a user, I want to log in so I can get to my tasks._
+
+- **AC1** When nobody is logged in, the log in screen is shown instead of the Tasks app.
+- **AC2** Correct username and password open the Tasks app and show "Logged in as {name}".
+- **AC3** A wrong password and an unknown username give the same message: "Wrong username or password."
+- **AC4** Both fields are required. Empty fields show inline messages without calling the server.
+- **AC5** Too many attempts (more than 20 per 15 minutes from one IP address) are refused with a message. If the server can't be reached, a message says so. Neither case crashes the app.
+
+### US-12 Stay logged in and log out
+
+_As a user, I want to stay logged in across reloads and be able to log out._
+
+- **AC1** After log in, a session lasts 8 hours. It is kept in an httpOnly, Secure, SameSite=Lax cookie that page scripts can't read.
+- **AC2** Reloading the page during a valid session goes straight to the Tasks app.
+- **AC3** Log out ends the session and shows the log in screen.
+- **AC4** A missing, expired or forged session cookie counts as logged out.
+
 ## 7. Tech Stack
 
-| Layer                | Choice                                               | Why                                                       |
-| -------------------- | ---------------------------------------------------- | --------------------------------------------------------- |
-| Language             | JavaScript (ES modules)                              | Fewer concepts at once than TypeScript                    |
-| UI                   | React + Vite                                         | Components/state practice; fast dev server                |
-| Styling              | Tailwind CSS (Vite plugin)                           | Utility-first styling, no custom CSS files                |
-| Persistence          | Browser `localStorage` behind a `taskStorage` module | No server; simplest durable storage                       |
-| Unit/component tests | Vitest + React Testing Library (jsdom)               | Native to Vite, fast                                      |
-| End-to-end tests     | Playwright                                           | Real-browser checks of key flows incl. reload persistence |
-| Tooling              | npm, ESLint, Prettier                                | Standard JS tooling                                       |
+| Layer                | Choice                                                  | Why                                                       |
+| -------------------- | ------------------------------------------------------- | --------------------------------------------------------- |
+| Language             | JavaScript (ES modules)                                 | Fewer concepts at once than TypeScript                    |
+| UI                   | React + Vite                                            | Components/state practice; fast dev server                |
+| Styling              | Tailwind CSS (Vite plugin)                              | Utility-first styling, no custom CSS files                |
+| Persistence          | Browser `localStorage` behind a `taskStorage` module    | No server; simplest durable storage                       |
+| Unit/component tests | Vitest + React Testing Library (jsdom)                  | Native to Vite, fast                                      |
+| End-to-end tests     | Playwright                                              | Real-browser checks of key flows incl. reload persistence |
+| Tooling              | npm, ESLint, Prettier                                   | Standard JS tooling                                       |
+| API (v1.1)           | Node.js + Express (`server/`)                           | Same language as the front end                            |
+| Accounts DB (v1.1)   | Azure SQL (`mssql`), table `dbo.demo_todolist_manvitha` | Team's existing Azure SQL server                          |
+| Auth (v1.1)          | bcrypt + JWT in an httpOnly cookie                      | Hashed passwords; the session can't be read by scripts    |
+| Hosting (v1.1)       | Azure Web App, secrets via Key Vault references         | `DB_CONNECTION_STRING` and `JWT_SECRET` never in code     |
 
 ## 8. Data Model
 
@@ -164,6 +198,18 @@ _As a user, I want to record how long I spend on a task._
 | `timeSpentSeconds` | number                    | Default `0`; total of manual entries and stopped timers (missing in old saved data = 0) |
 | `timerStartedAt`   | ISO 8601 string \| `null` | Set while the timer runs; `null` when stopped                                           |
 
+### `Account` (Azure SQL table `dbo.demo_todolist_manvitha`, created by hand)
+
+| Column          | Type          | Rules                                 |
+| --------------- | ------------- | ------------------------------------- |
+| `id`            | INT IDENTITY  | Primary key                           |
+| `username`      | NVARCHAR(50)  | Unique, 3–50 chars                    |
+| `password_hash` | NVARCHAR(100) | bcrypt hash (cost 12); never returned |
+| `name`          | NVARCHAR(100) | 1–100 chars                           |
+| `email`         | NVARCHAR(254) | Unique, lower-case                    |
+
+The HTTP API (`POST /register`, `POST /login`, `POST /logout`, `GET /me`) is described in the README.
+
 ### Storage format
 
 - localStorage key: `todo-app.tasks.v1`
@@ -177,7 +223,7 @@ _As a user, I want to record how long I spend on a task._
 
 ## 9. Storage API (replaces HTTP endpoints)
 
-There is no server. All persistence goes through `src/storage/taskStorage.js`, the **only** module that touches `localStorage`. Swapping it for a REST client later should not affect the components.
+Tasks don't use the server. Only accounts do (see US-10 to US-12). All task persistence goes through `src/storage/taskStorage.js`, the **only** module that touches `localStorage`. Swapping it for a REST client later should not affect the components.
 
 | Function           | Returns                                                          | Behaviour                                                                     |
 | ------------------ | ---------------------------------------------------------------- | ----------------------------------------------------------------------------- |
@@ -191,16 +237,29 @@ Task operations are pure functions in `src/domain/tasks.js` (no React, no storag
 ```
 TO-DO List/
 ├── docs/
-│   └── PRD.md
+│   ├── PRD.md
+│   └── adr/                    # architecture decisions
+├── server/                     # Express API (v1.1)
+│   ├── index.js / dev.js       # production / local entry points
+│   ├── start.js, config.js     # start-up; settings from environment only
+│   ├── app.js                  # routes + security middleware
+│   ├── auth.js                 # bcrypt + JWT session
+│   ├── db.js                   # only code that talks to Azure SQL
+│   └── *.test.js               # Vitest + supertest (in-memory store)
 ├── src/
-│   ├── main.jsx                # React entry
+│   ├── main.jsx                # React entry (renders Root)
+│   ├── Root.jsx                # log in screen or Tasks app
+│   ├── Root.test.jsx           # RTL tests for US-10 to US-12
+│   ├── api/authApi.js          # only browser code calling the account API
 │   ├── App.jsx                 # state, wiring, storage warning
 │   ├── App.test.jsx            # RTL tests for every user story
 │   ├── test/setup.js           # Vitest setup (jest-dom, cleanup)
 │   ├── index.css               # Tailwind import
 │   ├── domain/
 │   │   ├── tasks.js            # pure task operations + validation + sorting/filtering
-│   │   └── tasks.test.js
+│   │   ├── tasks.test.js
+│   │   ├── accounts.js         # pure account validation (shared with server)
+│   │   └── accounts.test.js
 │   ├── storage/
 │   │   ├── taskStorage.js      # only code that touches localStorage
 │   │   └── taskStorage.test.js
@@ -210,9 +269,13 @@ TO-DO List/
 │       ├── TaskItem.jsx
 │       ├── FilterBar.jsx       # filters, counter, clear completed
 │       ├── ToggleAll.jsx
+│       ├── AuthScreen.jsx      # log in / sign up form
+│       ├── authErrors.js       # UI messages for account errors
 │       └── titleErrors.js      # UI messages for title validation errors
 ├── e2e/
-│   └── tasks.spec.js           # Playwright
+│   ├── tasks.spec.js           # Playwright
+│   └── auth.spec.js            # sign up → log in → log out (API stubbed)
+├── .env.example                # template for local secrets (.env is git-ignored)
 ├── index.html
 ├── vite.config.js
 ├── playwright.config.js
@@ -228,26 +291,31 @@ TO-DO List/
 - Ordering and filtering behave exactly as in §6 and §8.
 - Storage failures (corrupted data, unavailable storage) show a warning and never crash the app.
 - Every acceptance criterion in §6 is covered by at least one automated test (Vitest/RTL or Playwright).
-- Playwright covers at least: add → reload → still there; complete → sinks below active; filter; clear completed.
+- Playwright covers at least: add → reload → still there; complete → sinks below active; filter; clear completed; sign up → log in → log out.
+- No secret or connection string is committed. The server reads them only from environment variables.
 - `npm install && npm run dev` starts the app; `npm test` and `npm run test:e2e` pass.
 - `npm run lint` passes with no errors.
 
 ## 12. Decision Log (design interview, 2026-11-20)
 
-| Decision                 | Choice                                                                                                            |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------------- |
-| Architecture             | Frontend-only; localStorage via one storage module                                                                |
-| Language / UI            | JavaScript, React + Vite                                                                                          |
-| Users                    | Single user, local only                                                                                           |
-| Task fields              | Title only (+ completed, timestamps)                                                                              |
-| Canonical term           | **Task** (not todo/item/note)                                                                                     |
-| Order                    | Active newest-first; completed sink, most recently completed first; un-complete returns to creation-time position |
-| Empty edit               | Rejected, old title kept                                                                                          |
-| Delete / Clear completed | Immediate, no confirmation                                                                                        |
-| Filter                   | Resets to All on reload                                                                                           |
-| Storage failure          | Empty list + warning, no crash                                                                                    |
-| Title rules              | Trim, 1–200 chars, duplicates allowed                                                                             |
-| Styling                  | Tailwind CSS                                                                                                      |
-| Tests                    | Vitest + RTL + Playwright                                                                                         |
-| Bulk actions             | Mark all complete (toggle) + Clear completed, in scope                                                            |
-| Multi-tab sync           | Out of scope                                                                                                      |
+| Decision                 | Choice                                                                                                                |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------- |
+| Architecture             | Frontend-only; localStorage via one storage module                                                                    |
+| Language / UI            | JavaScript, React + Vite                                                                                              |
+| Users                    | Single user, local only                                                                                               |
+| Task fields              | Title only (+ completed, timestamps)                                                                                  |
+| Canonical term           | **Task** (not todo/item/note)                                                                                         |
+| Order                    | Active newest-first; completed sink, most recently completed first; un-complete returns to creation-time position     |
+| Empty edit               | Rejected, old title kept                                                                                              |
+| Delete / Clear completed | Immediate, no confirmation                                                                                            |
+| Filter                   | Resets to All on reload                                                                                               |
+| Storage failure          | Empty list + warning, no crash                                                                                        |
+| Title rules              | Trim, 1–200 chars, duplicates allowed                                                                                 |
+| Styling                  | Tailwind CSS                                                                                                          |
+| Tests                    | Vitest + RTL + Playwright                                                                                             |
+| Bulk actions             | Mark all complete (toggle) + Clear completed, in scope                                                                |
+| Multi-tab sync           | Out of scope                                                                                                          |
+| Back end (2026-11-24)    | Node.js + Express                                                                                                     |
+| Accounts DB              | Azure SQL on `devportalsqlserver`; table `demo_todolist_manvitha`; connection string only from `DB_CONNECTION_STRING` |
+| Auth                     | bcrypt hashing; JWT session in an httpOnly cookie; sign up doesn't log you in                                         |
+| Deployment               | Azure Web App; Key Vault `Kv-customappsdemo` references in app settings                                               |

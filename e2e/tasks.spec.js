@@ -3,6 +3,13 @@ import { test, expect } from '@playwright/test';
 const STORAGE_KEY = 'todo-app.tasks.v1';
 
 test.beforeEach(async ({ page }) => {
+  // These tests are about Tasks, so start logged in. The API is stubbed in the
+  // browser; e2e/auth.spec.js covers the log in / sign up flow.
+  await page.route('**/me', (route) =>
+    route.fulfill({
+      json: { user: { id: '1', username: 'manvitha', name: 'Manvitha', email: 'm@example.com' } },
+    }),
+  );
   await page.goto('/');
 });
 
@@ -13,7 +20,7 @@ async function addTask(page, title) {
 }
 
 function taskTitles(page) {
-  return page.getByRole('list', { name: 'Tasks' }).getByRole('listitem').locator('span');
+  return page.getByRole('list', { name: 'Tasks' }).getByRole('listitem').locator('span.flex-1');
 }
 
 test('add → reload → task is still there', async ({ page }) => {

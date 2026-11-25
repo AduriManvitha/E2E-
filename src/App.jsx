@@ -26,7 +26,9 @@ const STORAGE_WARNINGS = {
     "This browser isn't letting the app save. Your tasks will be lost when you close or reload the page.",
 };
 
-export default function App() {
+// `user` and `onLogout` come from Root.jsx. They are optional so the Tasks app
+// can still be rendered (and tested) on its own.
+export default function App({ user = null, onLogout } = {}) {
   // Load once on first render. We deliberately do NOT save on load, so corrupted
   // data is only overwritten after the user makes a change (US-8 AC3).
   const [initial] = useState(() => loadTasks());
@@ -48,6 +50,20 @@ export default function App() {
 
   return (
     <main className="mx-auto max-w-xl px-4 py-12">
+      {user && (
+        <div className="mb-4 flex items-center justify-end gap-3 text-sm text-slate-600">
+          <span>
+            Logged in as <span className="font-medium text-slate-900">{user.name}</span>
+          </span>
+          <button
+            type="button"
+            onClick={onLogout}
+            className="rounded-lg border border-slate-300 px-3 py-1 font-medium text-slate-700 hover:bg-slate-100 focus:ring-2 focus:ring-purple-300 focus:outline-none"
+          >
+            Log out
+          </button>
+        </div>
+      )}
       <h1 className="mb-6 text-center text-4xl font-bold tracking-tight text-purple-700">Tasks</h1>
 
       {storageError && (
