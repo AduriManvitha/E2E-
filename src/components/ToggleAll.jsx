@@ -5,7 +5,7 @@ export default function ToggleAll({ taskCount, allCompleted, onToggleAll }) {
     <button
       type="button"
       onClick={onToggleAll}
-      className="text-sm font-medium text-indigo-600 hover:text-indigo-800"
+      className="text-sm font-medium text-purple-600 hover:text-purple-800"
     >
       {allCompleted ? 'Mark all active' : 'Mark all complete'}
     </button>

@@ -6,6 +6,11 @@ playwright-report/
 playwright/.cache/
 .vite/
 
+# Local secrets (DB_CONNECTION_STRING, JWT_SECRET). Use .env.example as the template.
+.env
+.env.*
+!.env.example
+
 # Machine-specific symlinks created by `npx skills add` (real files live in .agents/skills)
 .claude/skills/
 .claude/settings.local.json

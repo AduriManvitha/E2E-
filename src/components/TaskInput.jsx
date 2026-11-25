@@ -34,11 +34,11 @@ export default function TaskInput({ onAdd }) {
           aria-invalid={error ? 'true' : 'false'}
           aria-describedby={error ? 'new-task-error' : undefined}
           autoFocus
-          className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 focus:outline-none"
+          className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none"
         />
         <button
           type="submit"
-          className="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-300 focus:outline-none"
+          className="rounded-lg bg-purple-600 px-4 py-2 font-medium text-white hover:bg-purple-700 focus:ring-2 focus:ring-purple-300 focus:outline-none"
         >
           Add
         </button>

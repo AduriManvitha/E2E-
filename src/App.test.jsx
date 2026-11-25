@@ -38,7 +38,7 @@ function setup() {
     if (!list) return [];
     return within(list)
       .getAllByRole('listitem')
-      .map((li) => li.textContent.replace(/EditDelete$/, ''));
+      .map((li) => li.querySelector('span.flex-1').textContent);
   }
 
   async function toggle(title) {
@@ -317,5 +317,81 @@ describe('US-8 Storage failure', () => {
       getItem.mockRestore();
       setItem.mockRestore();
     }
+  });
+});
+
+describe('US-9 Time spent', () => {
+  it('shows 0 time for a new task and adds manual minutes to the total', async () => {
+    const { user, add } = setup();
+    await add('Write report');
+    const li = screen.getByRole('listitem');
+    expect(li).toHaveTextContent('Time spent: <1m');
+    const minutes = screen.getByRole('spinbutton', { name: /Minutes to add/ });
+    await user.type(minutes, '30');
+    await user.click(screen.getByRole('button', { name: /Add time to/ }));
+    expect(li).toHaveTextContent('Time spent: 30m');
+    await user.type(minutes, '45');
+    await user.click(screen.getByRole('button', { name: /Add time to/ }));
+    expect(li).toHaveTextContent('Time spent: 1h 15m');
+    expect(minutes).toHaveValue(null);
+    expect(saved()[0].timeSpentSeconds).toBe(75 * 60);
+  });
+
+  it('rejects zero, empty and too-large minutes', async () => {
+    const { user, add } = setup();
+    await add('Write report');
+    const minutes = screen.getByRole('spinbutton', { name: /Minutes to add/ });
+    await user.click(screen.getByRole('button', { name: /Add time to/ }));
+    expect(screen.getByRole('alert')).toHaveTextContent('whole minutes');
+    await user.type(minutes, '0');
+    await user.click(screen.getByRole('button', { name: /Add time to/ }));
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    await user.clear(minutes);
+    await user.type(minutes, '1441');
+    await user.click(screen.getByRole('button', { name: /Add time to/ }));
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(screen.getByRole('listitem')).toHaveTextContent('Time spent: <1m');
+  });
+
+  it('timer adds the elapsed time when stopped and persists it', async () => {
+    const { user, add } = setup();
+    await add('Write report');
+    await user.click(screen.getByRole('button', { name: /Start timer/ }));
+    expect(saved()[0].timerStartedAt).not.toBeNull();
+    vi.setSystemTime(clock + 5 * 60 * 1000);
+    await user.click(screen.getByRole('button', { name: /Stop timer/ }));
+    expect(screen.getByRole('listitem')).toHaveTextContent('Time spent: 5m');
+    expect(saved()[0]).toMatchObject({ timeSpentSeconds: 300, timerStartedAt: null });
+  });
+
+  it('completing a task stops its timer', async () => {
+    const { user, add } = setup();
+    await add('Write report');
+    await user.click(screen.getByRole('button', { name: /Start timer/ }));
+    vi.setSystemTime(clock + 2 * 60 * 1000);
+    await user.click(screen.getByRole('checkbox'));
+    expect(saved()[0]).toMatchObject({
+      completed: true,
+      timeSpentSeconds: 120,
+      timerStartedAt: null,
+    });
+  });
+
+  it('tasks saved before time tracking still load', () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify([
+        {
+          id: 'o',
+          title: 'Old',
+          completed: false,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          completedAt: null,
+        },
+      ]),
+    );
+    setup();
+    expect(screen.getByRole('listitem')).toHaveTextContent('Old');
+    expect(screen.getByRole('listitem')).toHaveTextContent('Time spent: <1m');
   });
 });

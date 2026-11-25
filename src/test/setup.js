@@ -4,5 +4,6 @@ import { cleanup } from '@testing-library/react';
 
 afterEach(() => {
   cleanup();
-  localStorage.clear();
+  // Server tests run in the "node" environment, where there is no localStorage.
+  globalThis.localStorage?.clear();
 });

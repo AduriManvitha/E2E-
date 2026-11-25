@@ -13,6 +13,12 @@ import {
   countActive,
   isTask,
   MAX_TITLE_LENGTH,
+  validateMinutes,
+  addTimeSpent,
+  startTimer,
+  stopTimer,
+  totalSeconds,
+  formatDuration,
 } from './tasks.js';
 
 const at = (minute) => new Date(Date.UTC(2026, 0, 1, 0, minute));
@@ -59,6 +65,8 @@ describe('createTask / addTask', () => {
       completed: false,
       createdAt: at(5).toISOString(),
       completedAt: null,
+      timeSpentSeconds: 0,
+      timerStartedAt: null,
     });
   });
 
@@ -183,5 +191,54 @@ describe('isTask', () => {
       false,
     );
     expect(isTask({ ...makeTask('1'), completed: 'yes' })).toBe(false);
+  });
+});
+
+describe('time spent', () => {
+  it('validates whole minutes from 1 to 1440', () => {
+    expect(validateMinutes('30')).toEqual({ ok: true, minutes: 30 });
+    expect(validateMinutes('1440').ok).toBe(true);
+    for (const bad of ['', '0', '1441', '-5', '1.5', 'abc', null]) {
+      expect(validateMinutes(bad).ok).toBe(false);
+    }
+  });
+
+  it('adds minutes to the total, including for tasks without the field', () => {
+    const old = { ...makeTask('a'), timeSpentSeconds: undefined };
+    expect(addTimeSpent([old], 'a', 2)[0].timeSpentSeconds).toBe(120);
+    expect(addTimeSpent(addTimeSpent([makeTask('a')], 'a', 1), 'a', 2)[0].timeSpentSeconds).toBe(
+      180,
+    );
+  });
+
+  it('start/stop adds elapsed seconds; starting twice keeps the first start', () => {
+    let tasks = startTimer([makeTask('a')], 'a', at(0));
+    tasks = startTimer(tasks, 'a', at(3));
+    expect(totalSeconds(tasks[0], at(10))).toBe(600);
+    tasks = stopTimer(tasks, 'a', at(10));
+    expect(tasks[0]).toMatchObject({ timeSpentSeconds: 600, timerStartedAt: null });
+  });
+
+  it('completing a task stops its timer', () => {
+    const tasks = toggleTask(startTimer([makeTask('a')], 'a', at(0)), 'a', at(4));
+    expect(tasks[0]).toMatchObject({
+      completed: true,
+      timeSpentSeconds: 240,
+      timerStartedAt: null,
+    });
+  });
+
+  it('formats durations', () => {
+    expect(formatDuration(0)).toBe('<1m');
+    expect(formatDuration(59)).toBe('<1m');
+    expect(formatDuration(300)).toBe('5m');
+    expect(formatDuration(3600)).toBe('1h');
+    expect(formatDuration(5400)).toBe('1h 30m');
+  });
+
+  it('isTask accepts tasks with and without time fields', () => {
+    expect(isTask(makeTask('a'))).toBe(true);
+    expect(isTask({ ...makeTask('a'), timeSpentSeconds: 5, timerStartedAt: null })).toBe(true);
+    expect(isTask({ ...makeTask('a'), timeSpentSeconds: 'x' })).toBe(false);
   });
 });

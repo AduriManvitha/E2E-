@@ -9,6 +9,9 @@ import {
   sortTasks,
   filterTasks,
   countActive,
+  addTimeSpent,
+  startTimer,
+  stopTimer,
 } from './domain/tasks.js';
 import { loadTasks, saveTasks } from './storage/taskStorage.js';
 import TaskInput from './components/TaskInput.jsx';
@@ -23,7 +26,9 @@ const STORAGE_WARNINGS = {
     "This browser isn't letting the app save. Your tasks will be lost when you close or reload the page.",
 };
 
-export default function App() {
+// `user` and `onLogout` come from Root.jsx. They are optional so the Tasks app
+// can still be rendered (and tested) on its own.
+export default function App({ user = null, onLogout } = {}) {
   // Load once on first render. We deliberately do NOT save on load, so corrupted
   // data is only overwritten after the user makes a change (US-8 AC3).
   const [initial] = useState(() => loadTasks());
@@ -45,7 +50,21 @@ export default function App() {
 
   return (
     <main className="mx-auto max-w-xl px-4 py-12">
-      <h1 className="mb-6 text-center text-4xl font-bold tracking-tight text-indigo-700">Tasks</h1>
+      {user && (
+        <div className="mb-4 flex items-center justify-end gap-3 text-sm text-slate-600">
+          <span>
+            Logged in as <span className="font-medium text-slate-900">{user.name}</span>
+          </span>
+          <button
+            type="button"
+            onClick={onLogout}
+            className="rounded-lg border border-slate-300 px-3 py-1 font-medium text-slate-700 hover:bg-slate-100 focus:ring-2 focus:ring-purple-300 focus:outline-none"
+          >
+            Log out
+          </button>
+        </div>
+      )}
+      <h1 className="mb-6 text-center text-4xl font-bold tracking-tight text-purple-700">Tasks</h1>
 
       {storageError && (
         <div
@@ -75,6 +94,9 @@ export default function App() {
             onToggle={(id) => commit(toggleTask(tasks, id))}
             onRename={(id, title) => commit(renameTask(tasks, id, title))}
             onDelete={(id) => commit(deleteTask(tasks, id))}
+            onAddTime={(id, minutes) => commit(addTimeSpent(tasks, id, minutes))}
+            onStartTimer={(id) => commit(startTimer(tasks, id))}
+            onStopTimer={(id) => commit(stopTimer(tasks, id))}
           />
         </div>
 

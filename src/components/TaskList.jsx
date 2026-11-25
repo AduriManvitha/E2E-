@@ -6,7 +6,16 @@ const EMPTY_MESSAGES = {
   completed: 'No completed tasks yet.',
 };
 
-export default function TaskList({ tasks, filter, onToggle, onRename, onDelete }) {
+export default function TaskList({
+  tasks,
+  filter,
+  onToggle,
+  onRename,
+  onDelete,
+  onAddTime,
+  onStartTimer,
+  onStopTimer,
+}) {
   if (tasks.length === 0) {
     return <p className="px-4 py-8 text-center text-slate-500">{EMPTY_MESSAGES[filter]}</p>;
   }
@@ -20,6 +29,9 @@ export default function TaskList({ tasks, filter, onToggle, onRename, onDelete }
           onToggle={onToggle}
           onRename={onRename}
           onDelete={onDelete}
+          onAddTime={onAddTime}
+          onStartTimer={onStartTimer}
+          onStopTimer={onStopTimer}
         />
       ))}
     </ul>
