@@ -72,18 +72,18 @@ The unique constraints matter: they stop two sign-ups at the same moment from cr
 Existing resources: SQL server `devportalsqlserver.database.windows.net`, Key Vault `Kv-customappsdemo`.
 
 1. **Database:** create the table above. In the SQL server's _Networking_ settings, turn on _Allow Azure services and resources to access this server_.
-2. **Key Vault:** the connection-string secret already exists. Add a new secret for the JWT key (for example named `jwt-secret`) with a random 32+ character value.
+2. **Key Vault:** the connection-string secret is `e2e-test`. The JWT key is in the secret `todolist-jwt-secret` (a random 64-character value).
 3. **Web App:** create an App Service: _Publish: Code_, _Runtime: Node 24 LTS_ (or 22 LTS), _OS: Linux_. Turn on _Identity → System assigned_.
 4. **Give the Web App access to Key Vault:** in `Kv-customappsdemo` → _Access control (IAM)_ → add role **Key Vault Secrets User** for the Web App's managed identity. (If the vault uses access policies instead of RBAC, add a policy with _Get_ on secrets.)
 5. **App settings** (Web App → _Settings → Environment variables_):
 
-   | Name                             | Value                                                                                                 |
-   | -------------------------------- | ----------------------------------------------------------------------------------------------------- |
-   | `DB_CONNECTION_STRING`           | `@Microsoft.KeyVault(SecretUri=https://kv-customappsdemo.vault.azure.net/secrets/<db-secret-name>/)`  |
-   | `JWT_SECRET`                     | `@Microsoft.KeyVault(SecretUri=https://kv-customappsdemo.vault.azure.net/secrets/<jwt-secret-name>/)` |
-   | `SCM_DO_BUILD_DURING_DEPLOYMENT` | `true` (Azure runs `npm install` and `npm run build`)                                                 |
+   | Name                             | Value                                                                                                   |
+   | -------------------------------- | ------------------------------------------------------------------------------------------------------- |
+   | `DB_CONNECTION_STRING`           | `@Microsoft.KeyVault(SecretUri=https://kv-customappsdemo.vault.azure.net/secrets/e2e-test/)`            |
+   | `JWT_SECRET`                     | `@Microsoft.KeyVault(SecretUri=https://kv-customappsdemo.vault.azure.net/secrets/todolist-jwt-secret/)` |
+   | `SCM_DO_BUILD_DURING_DEPLOYMENT` | `true` (Azure runs `npm install` and `npm run build`)                                                   |
 
-   Replace `<db-secret-name>` / `<jwt-secret-name>` with the real secret names. Leaving the version off the URI means Azure always uses the latest version. After saving, each Key Vault setting should show a green _Key vault Reference_ tick. A red one means the identity or role from step 4 is wrong.
+   `e2e-test` holds the connection string; `todolist-jwt-secret` holds this app's JWT key. Leaving the version off the URI means Azure always uses the latest version. After saving, each Key Vault setting should show a green _Key vault Reference_ tick. A red one means the identity or role from step 4 is wrong.
    Do **not** set `NODE_ENV=production` here: it would make the build skip Vite (a dev dependency). Production behaviour comes from `npm start` (`server/index.js`) instead.
 
 6. **Startup command** (_Configuration → General settings_): `npm start`. Turn on _HTTPS Only_.
